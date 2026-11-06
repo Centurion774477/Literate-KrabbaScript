@@ -1,4 +1,6 @@
 
+-- Copyright Reece Turner 2026
+
 module Main where
 
 import System.Environment (getArgs)
