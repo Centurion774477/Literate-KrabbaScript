@@ -4,9 +4,13 @@
 module Main where
 
 import System.Environment (getArgs)
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf, singleton)
 import System.FilePath (replaceExtension)
 import System.FilePath (takeExtension)
+import System.FilePath (takeFileName)
+import Data.Char (toUpper)
+import System.Directory 
+import System.Exit
 
 -- a line is either prose text or indented code
 data LineKind = Prose String | Code String
@@ -15,12 +19,13 @@ data LineKind = Prose String | Code String
 -- adding "without prose" to the end of your command will remove prose, otherwise it will become comments.
 data Mode = KeepProse | StripProse | MakePage
 
--- classify a single line
+-- classify a line into code or prose
 classify :: String -> LineKind
 classify line
   | "    " `isPrefixOf` line = Code (drop 4 line) -- indented line
   | "\t"   `isPrefixOf` line = Code (drop 1 line) -- indented line as well
   | otherwise                = Prose line -- anything else is prose
+
 
 -- transform a classified line into output
 transform :: Mode -> LineKind -> String
@@ -30,45 +35,76 @@ transform KeepProse (Prose text)  = "# " ++ text -- add a comment for prose line
 transform StripProse (Prose "")   = "" -- remove blank lines
 transform StripProse (Prose text) = "" -- remove prose lines
 
-transform MakePage (Prose "")   = "" -- remove blank lines
-transform MakePage (Prose text) = "<p>" ++ text ++ "</p>" -- wrap prose in HTML paragraph tags
-transform MakePage (Code code) = "<pre><code>" ++ code ++ "</code></pre>" -- wrap code in HTML pre/code tags
+transform MakePage (Prose "")     = "" -- remove blank lines
+transform MakePage (Prose text)   = "<p>" ++ text ++ "</p>" -- wrap prose in HTML paragraph tags
+transform MakePage (Code code)    = "<pre><code>" ++ code ++ "</code></pre>" -- wrap code in HTML pre/code tags
 
-transform _ (Code code)  = code
+transform _ (Code code)           = code
+
 
 -- process file
 process :: Mode -> String -> String
 process mode = unlines . map (transform mode . classify) . lines
 
+sandwich text =
+  header <> text <> footer
+  where
+    header = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\"><title>Literate KrabbaScript</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
+    footer = "<h5>Created with Literate KrabbaScript</h5></body></html>" -- todo: add a link to the GitHub repo
+
 -- run: runghc literate_krabbascript.hs test.litkrab test.ks
+-- test page creation: runghc literate_krabbascript.hs test.litkrab test.html make page
+
+
 main :: IO ()
 main = do
   args <- getArgs
+
+  -- check if no args were passed or if a file was passed and it doesn't exist
   case args of
-    -- remove prose
-    [inputFile, outputFile, "without", "prose"] -> do
-        contents <- readFile inputFile
-        writeFile outputFile (process StripProse contents)
+    (inputFile:_) -> do
+      exists <- doesFileExist inputFile
+      if not exists
+        then putStrLn "Your input file does not exist." >> exitFailure
+        else return ()
+    [] -> do
+      putStrLn "Usage: literate_krabbascript <input> [output]"
+      putStrLn "To filter out prose, add 'without prose' to your command."
+      putStrLn "To generate a .html page, add 'make page' to your command."
+      exitFailure
 
-    -- infer output and remove prose
-    [inputFile, "without", "prose"] -> do
-        contents <- readFile inputFile
-        let outputFile = replaceExtension inputFile ".ks"
-        writeFile outputFile (process StripProse contents)
-  
-    -- generate a .html page
-    [inputFile, outputFile, "make", "page"] -> do
-      if takeExtension outputFile /= ".html"
-        then putStrLn "Your output file has to be a .html file if you're generating a page."
-        else do
+  case args of
+    -- handles both:
+    -- `input output without prose`
+    -- and
+    -- `input output make page`
+    [inputFile, outputFile, flag1, flag2] -> do
+      case flag1 ++ " " ++ flag2 of
+        "without prose" -> do
           contents <- readFile inputFile
-          writeFile outputFile (process MakePage contents)
+          writeFile outputFile (process StripProse contents)
+        "make page" -> do
+          if takeExtension outputFile /= ".html"
+          then putStrLn "Your output file has to be a .html file if you're generating a page."
+          else do
+            contents <- readFile inputFile
+            let header = "<h1>" <> map toUpper (takeFileName inputFile) <> "</h1>"
+            writeFile outputFile (header <> sandwich (process MakePage contents))
 
-    -- generate a .html page and infer output file
-    [inputFile, "make", "page"] -> do
-      let outputFile = replaceExtension inputFile ".html"
-      contents <- readFile inputFile
-      writeFile outputFile (process MakePage contents)
+    -- omit output file and passes either 'without prose' or 'make page'
+    [inputFile, flag1, flag2] -> do
+      case flag1 ++ " " ++ flag2 of
+        "without prose" -> do
+          contents <- readFile inputFile
+        
+          let outputFile = replaceExtension inputFile ".ks" in
+            writeFile outputFile (process StripProse contents)
+        "make page" -> do
+          contents <- readFile inputFile
+
+          let header = "<h1>" <> map toUpper (takeFileName inputFile) <> "</h1>"
+          let outputFile = replaceExtension inputFile ".html" in
+            writeFile outputFile (header <> sandwich (process MakePage contents))
 
     -- normal case — an input and output is provided; transpile normally.
     [inputFile, outputFile] -> do
@@ -78,6 +114,11 @@ main = do
     -- infer output file from input file
     [inputFile] -> do
         contents <- readFile inputFile
-        let outputFile = replaceExtension inputFile ".ks"
-        writeFile outputFile (process KeepProse contents)
-    _ -> putStrLn "Usage: literate_krabbascript <input> [output]"
+        let outputFile = replaceExtension inputFile ".ks" in
+          writeFile outputFile (process KeepProse contents)
+
+    _ -> do
+      putStrLn "Usage: literate_krabbascript <input> [output]"
+      putStrLn "To filter out prose, add 'without prose' to your command."
+      putStrLn "To generate a .html page, add 'make page' to your command."
+

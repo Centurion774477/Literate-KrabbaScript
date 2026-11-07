@@ -1,0 +1,5 @@
+
+
+func add(a: I32, b: I32) -> I32 {
+	return a + b;
+}
