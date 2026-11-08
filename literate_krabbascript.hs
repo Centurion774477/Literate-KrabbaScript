@@ -49,12 +49,15 @@ process mode = unlines . map (transform mode . classify) . lines
 sandwich text =
   header <> text <> footer
   where
-    header = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\"><title>Literate KrabbaScript</title><link rel=\"stylesheet\" href=\"style.css\"></head><body>"
-    footer = "<h5>Created with Literate KrabbaScript</h5></body></html>" -- todo: add a link to the GitHub repo
+    header = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\"><title>Literate KrabbaScript</title></head><body>"
+    footer = "<h5>Created with Literate KrabbaScript</h5></body></html>"
+    -- todo: add a link to the GitHub repo in the footer
 
 -- run: runghc literate_krabbascript.hs test.litkrab test.ks
 -- test page creation: runghc literate_krabbascript.hs test.litkrab test.html make page
 
+header_for path =
+  "\n<h1 style=\"font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif;\">" <> map toUpper (takeFileName path) <> "</h1>"
 
 main :: IO ()
 main = do
@@ -88,8 +91,7 @@ main = do
           then putStrLn "Your output file has to be a .html file if you're generating a page."
           else do
             contents <- readFile inputFile
-            let header = "<h1>" <> map toUpper (takeFileName inputFile) <> "</h1>"
-            writeFile outputFile (header <> sandwich (process MakePage contents))
+            writeFile outputFile (sandwich (header_for inputFile <> process MakePage contents))
 
     -- omit output file and passes either 'without prose' or 'make page'
     [inputFile, flag1, flag2] -> do
@@ -102,9 +104,8 @@ main = do
         "make page" -> do
           contents <- readFile inputFile
 
-          let header = "<h1>" <> map toUpper (takeFileName inputFile) <> "</h1>"
           let outputFile = replaceExtension inputFile ".html" in
-            writeFile outputFile (header <> sandwich (process MakePage contents))
+            writeFile outputFile (sandwich (header_for inputFile <> process MakePage contents))
 
     -- normal case — an input and output is provided; transpile normally.
     [inputFile, outputFile] -> do
