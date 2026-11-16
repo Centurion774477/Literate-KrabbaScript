@@ -3,14 +3,14 @@
 
 module Main where
 
-import System.Environment (getArgs)
-import Data.List (isPrefixOf, singleton)
-import System.FilePath (replaceExtension)
-import System.FilePath (takeExtension)
-import System.FilePath (takeFileName)
-import Data.Char (toUpper)
-import System.Directory 
-import System.Exit
+import System.Environment ( getArgs )
+import Data.List ( isPrefixOf )
+import System.FilePath ( replaceExtension, takeExtension, takeFileName )
+import Data.Char ( toUpper )
+import System.Directory ( doesFileExist ) 
+import System.Exit ( exitFailure )
+import Data.List ( groupBy )
+import Data.Function ( on )
 
 -- a line is either prose text or indented code
 data LineKind = Prose String | Code String
@@ -39,25 +39,53 @@ transform MakePage (Prose "")     = "" -- remove blank lines
 transform MakePage (Prose text)   = "<p>" ++ text ++ "</p>" -- wrap prose in HTML paragraph tags
 transform MakePage (Code code)    = "<pre><code>" ++ code ++ "</code></pre>" -- wrap code in HTML pre/code tags
 
+
 transform _ (Code code)           = code
 
+isCode :: LineKind -> Bool
+isCode (Code _) = True
+isCode _        = False
+
+-- group consecutive lines of the same kind, then render each group
+renderGroup :: [LineKind] -> String
+renderGroup [] = ""
+renderGroup group@(Code _ : _) =
+  "<pre><code>" ++ unlines (map (\(Code c) -> c) group) ++ "</code></pre>"
+renderGroup group =
+  concatMap renderProse group
+  where
+    renderProse (Prose "")   = ""
+    renderProse (Prose text) = "<p>" ++ text ++ "</p>\n"
+    renderProse _            = ""
+
+makePage :: String -> String
+makePage = concatMap renderGroup
+         . groupBy ((==) `on` isCode)
+         . map classify
+         . lines
 
 -- process file
 process :: Mode -> String -> String
-process mode = unlines . map (transform mode . classify) . lines
+process KeepProse  = unlines . map (transform KeepProse  . classify) . lines
+process StripProse = unlines . map (transform StripProse . classify) . lines
+process MakePage   = makePage
 
-sandwich text =
-  header <> text <> footer
+sandwich :: String -> String -> String
+sandwich title text =
+  header ++ text ++ footer
   where
-    header = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><meta http-equiv=\"X-UA-Compatible\" content=\"ie=edge\"><title>Literate KrabbaScript</title></head><body>"
+    header = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">\
+             \<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\
+             \<title>" ++ title ++ "</title></head><body>"
     footer = "<h5>Created with Literate KrabbaScript</h5></body></html>"
     -- todo: add a link to the GitHub repo in the footer
 
 -- run: runghc literate_krabbascript.hs test.litkrab test.ks
 -- test page creation: runghc literate_krabbascript.hs test.litkrab test.html make page
 
+header_for :: FilePath -> String
 header_for path =
-  "\n<h1 style=\"font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif;\">" <> map toUpper (takeFileName path) <> "</h1>"
+  "\n<h1 style=\"font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif;\">" ++ map toUpper (takeFileName path) ++ "</h1>"
 
 main :: IO ()
 main = do
@@ -91,7 +119,8 @@ main = do
           then putStrLn "Your output file has to be a .html file if you're generating a page."
           else do
             contents <- readFile inputFile
-            writeFile outputFile (sandwich (header_for inputFile <> process MakePage contents))
+            let title = takeFileName inputFile in
+              writeFile outputFile (sandwich title (header_for inputFile ++ process MakePage contents))
 
     -- omit output file and passes either 'without prose' or 'make page'
     [inputFile, flag1, flag2] -> do
@@ -105,7 +134,8 @@ main = do
           contents <- readFile inputFile
 
           let outputFile = replaceExtension inputFile ".html" in
-            writeFile outputFile (sandwich (header_for inputFile <> process MakePage contents))
+            let title = takeFileName inputFile in
+              writeFile outputFile (sandwich title (header_for inputFile ++ process MakePage contents))
 
     -- normal case — an input and output is provided; transpile normally.
     [inputFile, outputFile] -> do
