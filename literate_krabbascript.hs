@@ -76,9 +76,42 @@ sandwich title text =
   where
     header = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">\
              \<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\
-             \<title>" ++ title ++ "</title></head><body>"
-    footer = "<h5>Created with Literate KrabbaScript</h5></body></html>"
-    -- todo: add a link to the GitHub repo in the footer
+             \<title>" ++ title ++ "</title>\
+             \<style>" ++ style ++ "</style>\
+             \</head><body>"
+    footer = "<h5>Created with <a href=\"https://github.com/Centurion774477/Literate-KrabbaScript\">Literate KrabbaScript</a></h5></body></html>"
+    style = unlines
+      [ "body {"
+        ,
+        "font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, FreeSerif, serif; font-size: 15px; line-height: 22px;"
+        ,
+        "color: #252519; background-color: #f5f5ff; margin: 0; padding: 0; min-height: 100%;"
+        ,
+        "}"
+        ,
+        "a { color: #261a3b; }"
+        ,
+        "a:visited { color: #261a3b; }"
+        ,
+        "p, ul, ol { margin: 0 0 15px; }"
+        ,
+        "h1, h2, h3, h4, h5, h6 { margin: 30px 0 15px; color: inherit; }"
+        ,
+        "h1 { margin-top: 40px; }"
+        ,
+        "hr { border: 0; border-top: 1px solid #e5e5ee; height: 1px; margin: 20px 0; }"
+        ,
+        "pre, tt, code {"
+        ,
+        "font-size: 12px; line-height: 18px; font-family: Menlo, Monaco, Consolas, \"Lucida Console\", monospace;"
+        ,
+        "margin: 0; padding: 0; background-color: #c8dff6;"
+        ,
+        "}"
+        ,
+        "body { max-width: 400px; margin: 0 auto; padding: 0 16px; }"
+      ]
+
 
 -- run: runghc literate_krabbascript.hs test.litkrab test.ks
 -- test page creation: runghc literate_krabbascript.hs test.litkrab test.html make page
