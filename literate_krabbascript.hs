@@ -6,7 +6,7 @@ module Main where
 import System.Environment ( getArgs )
 import Data.List ( isPrefixOf )
 import System.FilePath ( replaceExtension, takeExtension, takeFileName )
-import Data.Char ( toUpper )
+import Data.Char ( toUpper, isDigit, isAlphaNum, isSpace )
 import System.Directory ( doesFileExist ) 
 import System.Exit ( exitFailure )
 import Data.List ( groupBy )
@@ -39,18 +39,72 @@ transform MakePage (Prose "")     = "" -- remove blank lines
 transform MakePage (Prose text)   = "<p>" ++ text ++ "</p>" -- wrap prose in HTML paragraph tags
 transform MakePage (Code code)    = "<pre><code>" ++ code ++ "</code></pre>" -- wrap code in HTML pre/code tags
 
-
 transform _ (Code code)           = code
+
 
 isCode :: LineKind -> Bool
 isCode (Code _) = True
 isCode _        = False
 
+isStringLiteral :: String -> Bool
+isStringLiteral ('"':rest) = last rest == '"'
+isStringLiteral _          = False
+
+isNumberLiteral :: String -> Bool
+isNumberLiteral = all isDigit
+
+
+classifyToken token
+  | head token == '#'          = "<span class=\"comment\">" ++ token ++ "</span>"
+  | token `elem` keywords      = "<span class=\"keyword\">" ++ token ++ "</span>"
+  | token `elem` types         = "<span class=\"type\">"    ++ token ++ "</span>"
+  | isNumberLiteral token      = "<span class=\"number\">"  ++ token ++ "</span>"
+  | isStringLiteral token      = "<span class=\"string\">"  ++ token ++ "</span>"
+  | otherwise                  = token
+  where
+    keywords = ["mod", "var", "val", "func", "when", "do", "return", "break", "else", "if", "struct"]
+    types    = ["Str", "I32", "I64", "F32", "F64", "Bool"]
+
+
+consumeWord :: String -> [String]
+consumeWord s =
+  let (word, rest) = span (\c -> isAlphaNum c || c == '_') s
+  in word : tokenize rest
+
+
+consumeSpace :: String -> [String]
+consumeSpace s =
+  let (space, rest) = span isSpace s
+  in space : tokenize rest
+
+
+consumeString :: String -> [String]
+consumeString s =
+  let (str, rest) = span (/= '"') s
+  in case rest of
+    ('"':remaining) -> ('"' : str ++ "\"") : tokenize remaining
+    _               -> ['"' : str]  -- unterminated string, just return what we have
+
+
+tokenize :: String -> [String]
+tokenize [] = []
+tokenize ('#':rest) = ('#':rest) : []  -- rest of line is a comment
+tokenize ('"':rest) = consumeString rest
+tokenize (c:rest)
+  | isAlphaNum c || c == '_' = consumeWord (c:rest)
+  | isSpace c                = consumeSpace (c:rest)
+  | c == '-', (r:rs) <- rest
+  , r == '>'                 = "->" : tokenize rs
+  | otherwise                = [c] : tokenize rest
+
+
 -- group consecutive lines of the same kind, then render each group
 renderGroup :: [LineKind] -> String
 renderGroup [] = ""
 renderGroup group@(Code _ : _) =
-  "<pre><code>" ++ unlines (map (\(Code c) -> c) group) ++ "</code></pre>"
+  "<pre><code>" ++ concatMap highlightLine (map (\(Code c) -> c) group) ++ "</code></pre>"
+  where
+    highlightLine line = concatMap classifyToken (tokenize line) ++ "\n"
 renderGroup group =
   concatMap renderProse group
   where
@@ -58,11 +112,13 @@ renderGroup group =
     renderProse (Prose text) = "<p>" ++ text ++ "</p>\n"
     renderProse _            = ""
 
+
 makePage :: String -> String
 makePage = concatMap renderGroup
          . groupBy ((==) `on` isCode)
          . map classify
          . lines
+
 
 -- process file
 process :: Mode -> String -> String
