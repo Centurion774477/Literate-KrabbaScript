@@ -64,9 +64,12 @@ literate_krabbascript formatter.suomi without prose
 
 Note that this only refers to prose; the compiler won't hunt down every comment in your code and remove it.
 
+However, you should not use comments in Literate KrabbaScript —
+there's no reason to, given you can use prose to illustrate the same point more cleanly.
+
 ## Generate
 
-To generate a `.html` page, pass in the "make page" flag:
+To generate a `.html` page from your Literate KrabbaScript, pass in the "make page" flag:
 
 ```
 literate_krabbascript formatter.suomi make page
@@ -79,13 +82,29 @@ the previous example is the same as:
 literate_krabbascript formatter.suomi formatter.html make page
 ```
 
-# 
+The page generator takes a lot of inspiration from [Docco](https://ashkenas.com/docco/),
+and thus the formatting will look a lot like it.
+
+Also like Docco, you will get syntax highlighting for your KrabbaScript instead of just plain black text.
+
+<hr>
 
 You can use any extension for your literate files, but `.suomi` or `.litkrab` is preferred.
 
-The compiler won't care about your extension, unless you omit an output file and have a .ks extension on your input file;
+The compiler won't care about your file extensions, unless you omit an output file and have a .ks extension on your input file;
 the extension cannot be inferred and I don't want to overwrite your literate code.
+
+# Miscellaneous
 
 Literate KrabbaScript is heavily inspired by [Literate CoffeeScript](https://coffeescript.org/#literate).
 
-[See the original KrabbaScript](https://github.com/KrabbaTek/krabbascript)
+Also [See the original KrabbaScript](https://github.com/KrabbaTek/krabbascript)
+
+If you're looking for other little KrabbaScript tools then consider [Nihilist](https://github.com/Centurion774477/Nihilist), which is a KrabbaScript preprocessor with a more relaxed syntax, including features like omitting parens.
+
+Learn more about Literate Programming [here](https://en.wikipedia.org/wiki/Literate_programming).
+
+<hr>
+
+Thanks for taking a look at Literate KrabbaScript.
+Cheers!
