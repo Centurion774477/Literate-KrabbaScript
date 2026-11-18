@@ -176,6 +176,12 @@ sandwich title text =
         "}"
         ,
         "body { max-width: 400px; margin: 0 auto; padding: 0 16px; }"
+        ,
+        ".keyword { color:#d48c0e }"
+        ,
+        ".type { color:cadetblue }"
+        ,
+        ".string, .number { color:mediumseagreen }"
       ]
 
 
@@ -255,6 +261,7 @@ main = do
 
     _ -> do
       putStrLn "Usage: literate_krabbascript <input> [output]"
-      putStrLn "To filter out prose, add 'without prose' to your command."
-      putStrLn "To generate a .html page, add 'make page' to your command."
+      putStrLn "To filter out prose, use the 'without prose' flag."
+      putStrLn "To generate a .html page, use the 'make page' flag."
+      putStrLn "To turn a .ks file into a Literate file, use the 'in reverse' flag."
 
