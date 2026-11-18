@@ -17,7 +17,8 @@ data LineKind = Prose String | Code String
 
 -- keep prose and transpile into comments or remove prose entirely
 -- adding "without prose" to the end of your command will remove prose, otherwise it will become comments.
-data Mode = KeepProse | StripProse | MakePage
+-- Reverse will turn normal KrabbaScript into Literate KrabbaScript
+data Mode = KeepProse | StripProse | MakePage | Reverse
 
 -- classify a line into code or prose
 classify :: String -> LineKind
@@ -119,12 +120,21 @@ makePage = concatMap renderGroup
          . map classify
          . lines
 
+unliterate :: String -> String
+unliterate = unlines . map convertLine . lines
+  where
+    convertLine ('#':' ':rest) = rest -- comment becomes prose
+    convertLine ('#':rest)     = rest -- handle # without space
+    convertLine ""             = ""   -- keep blank lines
+    convertLine line           = "    " ++ line  -- indent code
+
 
 -- process file
 process :: Mode -> String -> String
 process KeepProse  = unlines . map (transform KeepProse  . classify) . lines
 process StripProse = unlines . map (transform StripProse . classify) . lines
 process MakePage   = makePage
+process Reverse    = unliterate
 
 sandwich :: String -> String -> String
 sandwich title text =
@@ -225,6 +235,12 @@ main = do
           let outputFile = replaceExtension inputFile ".html" in
             let title = takeFileName inputFile in
               writeFile outputFile (sandwich title (header_for inputFile ++ process MakePage contents))
+        "in reverse" -> do
+          contents <- readFile inputFile
+          
+          let outputFile = replaceExtension inputFile ".suomi" in
+            writeFile outputFile (process Reverse contents)
+
 
     -- normal case — an input and output is provided; transpile normally.
     [inputFile, outputFile] -> do
